@@ -42,13 +42,18 @@ pub fn read_pathbuf<T: Read + Seek>(reader: &mut T) -> Result<PathBuf> {
 }
 
 
-pub fn read_u64<R: Read + Seek>(reader: &mut R) -> Result<u64> {
+pub fn read_u64<R: Read>(reader: &mut R) -> Result<u64> {
     let buf = &mut [0u8; 8];
     reader.read_exact(buf)?;
     Ok(u64::from_le_bytes(*buf))
 }
 
-pub fn read_u32<R: Read + Seek>(reader: &mut R) -> Result<u32> {
+pub fn write_u32<W: Write>(writer: &mut W, number: u32) -> Result<()> {
+    writer.write_all(&number.to_le_bytes())?;
+    Ok(())
+}
+
+pub fn read_u32<R: Read>(reader: &mut R) -> Result<u32> {
     let buf = &mut [0u8; 4];
     reader.read_exact(buf)?;
     Ok(u32::from_le_bytes(*buf))

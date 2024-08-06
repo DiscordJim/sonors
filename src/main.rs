@@ -1,11 +1,15 @@
 use core::str;
 use std::{collections::HashMap, fs::{create_dir_all, File, Metadata}, io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write}, path::{Path, PathBuf}};
 
+use argon2::Argon2;
+use chacha20poly1305::{aead::OsRng, AeadCore, ChaCha20Poly1305, KeyInit};
 use thunderdome::{Arena, Index};
 use walkdir::WalkDir;
 use anyhow::{anyhow, Result};
 
 use sonors::ioutils::*;
+
+use chacha20poly1305::aead::Aead;
 
 // 128 MiB
 pub const CHUNK_SIZE: usize = 131_072;
@@ -14,7 +18,6 @@ pub const CHUNK_SIZE: usize = 131_072;
 #[derive(Debug)]
 pub struct ArchivalNode {
     pub path: PathBuf,
-    //pub metadata: Metadata,
     pub is_leaf: bool,
 }
 
@@ -48,10 +51,8 @@ pub fn transfer_archival_node<R: Read + Seek, W: Write + Seek>(reader: &mut R, w
         }
        
         let mut buf = vec![0u8; read_u32(reader)? as usize];
-        reader.read_exact(&mut buf)?;
-        
+        reader.read_exact(&mut buf)?;        
         writer.write_all(&buf)?;
-
     }   
     Ok(())
 }
@@ -201,7 +202,7 @@ pub fn read_sonorous_file_table<T: Read + Seek>(reader: &mut T) -> Result<Sonoro
         let path = read_pathbuf(reader)?;
         
 
-        println!("({key}, {value}) -> {path:?}");
+        //println!("({key}, {value}) -> {path:?}");
     
         file_table.0.push((key, value, ArchivalNode {
             is_leaf,
@@ -216,16 +217,31 @@ pub fn read_sonorous_file_table<T: Read + Seek>(reader: &mut T) -> Result<Sonoro
     Ok(file_table)
 }
 
+pub enum SonorousHeader {
+    PasswordSalt = 0x00,
+    UtilityVersion = 0x01
+}
+
 
 
 
 fn main() -> Result<()> {
 
-    //std::fs::remove_file("archive.srs")?;
-//    std::fs::remove_dir_all("wowz")?;
+   
+    
+    let password = b"hunter42"; // Bad password; don't actually use!
+    let salt = b"example salt"; // Salt should be unique per password
+
+    let mut key = [0u8; 32]; // Can be any desired size
+    Argon2::default().hash_password_into(password, salt, &mut key).unwrap();
+  
 
 
+    println!("My borhter {:?}", key);
 
+
+ //    println!("Plan: {:?}", std::str::from_utf8(&plaintext)); 
+   /* 
     println!("Creating file.");
     create_sonorous_file("test", "archive.srs")?;
     println!("File created.");
@@ -234,7 +250,7 @@ fn main() -> Result<()> {
     let mut reader = BufReader::new(File::open("archive.srs")?);
     let file_table = SonorousFileTable::from_reader(&mut reader)?;
     file_table.expand_into_files(&mut reader, "wowz")?;
-
+    */
 
     //create_sonorous_file(path, "archive.srs")?;
 
