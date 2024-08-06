@@ -38,18 +38,22 @@ impl ArchivalNode {
 }
 */
 
-pub fn transfer_archival_node<R: Read + Seek, W: Write + Seek>(reader: &mut R, output_path: &mut W) -> Result<ArchivalNode>{
+pub fn transfer_archival_node<R: Read + Seek, W: Write + Seek>(reader: &mut R, writer: &mut W) -> Result<()>{
 
 
+    loop {
+        let status = read_byte(reader)?;
+        if status == 0x01 {
+            break
+        }
+       
+        let mut buf = vec![0u8; read_u32(reader)? as usize];
+        reader.read_exact(&mut buf)?;
+        
+        writer.write_all(&buf)?;
 
-    
-
-
-    Ok(ArchivalNode {
-        path: PathBuf::default(),
-        is_leaf: true
-    })
-
+    }   
+    Ok(())
 }
 
 
@@ -73,10 +77,13 @@ pub fn write_archival_node<T: Write + Seek>(writer: &mut T, node: &ArchivalNode)
                 break;
             }
            // println!("Writing chunks!");
+            writer.write_all(&[0x00])?;
             writer.write_all(&(bytes_read as u32).to_le_bytes())?;
             writer.write_all(&buf[..bytes_read])?;
         }
+        writer.write_all(&[0x01])?;
     }
+
     
     
 
@@ -124,7 +131,7 @@ pub fn create_sonorous_file(path: impl AsRef<Path>, output: impl AsRef<Path>) ->
 
 //    let mut file_table: HashMap<u32, u64> = HashMap::new();
 
-    let mut file_writer = BufWriter::new(File::create_new(output.as_ref())?);
+    let mut file_writer = BufWriter::new(File::create(output.as_ref())?);
     for (index, node) in node_list.into_iter().enumerate() {
         file_table.0.push((index.try_into()?, write_archival_node(&mut file_writer, &node)?, node));
     }
@@ -153,11 +160,14 @@ impl SonorousFileTable {
 
             // Create the directory tree if it does not exist.
             let path = dest.as_ref().join(&node.path);
-            create_directory_tree(&path)?;
+            println!("Creating directory.");
+            create_directory_tree(&path, node.is_leaf)?;
         
             println!("done");
             if node.is_leaf {
-                let writer = &mut BufWriter::new(File::create(&node.path)?);
+                println!("Writing a leaf node...");
+                let writer = &mut BufWriter::new(File::create(&path)?);
+                println!("Created writer...");
                 transfer_archival_node(reader, writer)?;
             }
         }
@@ -209,11 +219,14 @@ pub fn read_sonorous_file_table<T: Read + Seek>(reader: &mut T) -> Result<Sonoro
 
 fn main() -> Result<()> {
 
-    std::fs::remove_file("archive.srs")?;
+    //std::fs::remove_file("archive.srs")?;
+//    std::fs::remove_dir_all("wowz")?;
 
 
 
+    println!("Creating file.");
     create_sonorous_file("test", "archive.srs")?;
+    println!("File created.");
 
 
     let mut reader = BufReader::new(File::open("archive.srs")?);

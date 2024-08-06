@@ -2,14 +2,16 @@ use std::{fs::create_dir_all, io::{Read, Seek, Write}, path::{Path, PathBuf}};
 use anyhow::{Result, anyhow};
 
 
-pub fn create_directory_tree(path: impl AsRef<Path>) -> Result<()> {
+pub fn create_directory_tree(path: impl AsRef<Path>, is_file: bool) -> Result<()> {
 
     let path = path.as_ref();
     if path.exists() {
         return Ok(())
     }
-    if path.is_file() {
+    println!("Path: {:?}", path);
+    if is_file {
         if let Some(parent_directory) = path.parent() {
+            println!("-> {:?}", parent_directory);
             create_dir_all(&parent_directory)?;
         }
     } else {
@@ -52,10 +54,16 @@ pub fn read_u32<R: Read + Seek>(reader: &mut R) -> Result<u32> {
     Ok(u32::from_le_bytes(*buf))
 }
 
-pub fn read_bool<R: Read + Seek>(reader: &mut R) -> Result<bool> {
+pub fn read_byte<R: Read + Seek>(reader: &mut R) -> Result<u8> {
     let buf = &mut [0u8; 1];
     reader.read_exact(buf)?;
-    Ok(match buf[0] {
+    Ok(buf[0])
+}
+
+pub fn read_bool<R: Read + Seek>(reader: &mut R) -> Result<bool> {
+    //let buf = &mut [0u8; 1];
+    //reader.read_exact(buf)?;
+    Ok(match read_byte(reader)? {
         0x01 => true,
         0x00 => false,
         _ => Err(anyhow!("Expected a boolean but found a different code that was not 0x01 or 0x00."))?
@@ -70,5 +78,4 @@ pub fn write_bool<W: Write + Seek>(writer: &mut W, value: bool) -> Result<()> {
     }
     Ok(())
 }
-
 
