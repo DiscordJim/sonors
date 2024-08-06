@@ -68,6 +68,7 @@ pub fn write_archival_node<T: Write + Seek>(writer: &mut T, node: &ArchivalNode)
     //writer.write_all(&node.get_header_bytes()?)?;
     
     if node.is_leaf {
+        println!("putting leaf in file...");
         let mut reader = BufReader::new(File::open(&node.path)?);
 
         loop {
@@ -80,6 +81,7 @@ pub fn write_archival_node<T: Write + Seek>(writer: &mut T, node: &ArchivalNode)
             writer.write_all(&[0x00])?;
             writer.write_all(&(bytes_read as u32).to_le_bytes())?;
             writer.write_all(&buf[..bytes_read])?;
+            println!("Wrote some stuff");
         }
         writer.write_all(&[0x01])?;
     }
