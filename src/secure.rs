@@ -1,6 +1,7 @@
 use std::io::{Read, Write};
 
 use anyhow::{anyhow, Result};
+use argon2::{password_hash::rand_core::RngCore, Argon2};
 use chacha20poly1305::{aead::{Aead, AeadMut, OsRng}, AeadCore, ChaCha20Poly1305, KeyInit};
 
 use crate::ioutils::{read_u32, write_u32};
@@ -45,6 +46,44 @@ pub fn read_encrypted<R: Read>(reader: &mut R, key: &[u8]) -> Result<Vec<u8>> {
     //let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
 
     Ok(decrypted)
+}
+
+
+pub fn generate_salt() -> [u8; 32] {
+ let mut rng = OsRng::default();
+
+    let mut salt = [0u8; 32];
+    let mut salt_pos = 0;
+    for _ in 0..4 {
+        for b in rng.next_u64().to_ne_bytes() {
+            salt[salt_pos] = b;
+            salt_pos += 1;
+        }
+    }
+    salt
+
+}
+
+///
+pub fn create_key(salt: &[u8], password: &[u8]) -> Result<[u8; 32]> {
+       
+
+    let mut key = [0u8; 32];
+    Argon2::default().hash_password_into(password, &salt, &mut key)
+        .map_err(|e| anyhow!("Failed to produce password with error: {e}"))?;
+
+
+    Ok(key)
+
+
+
+
+    
+    //let password = b"hunter42"; // Bad password; don't actually use!
+    //let salt = b"example salt"; // Salt should be unique per password
+
+    //let mut key = [0u8; 32]; // Can be any desired size
+   // Argon2::default().hash_password_into(password, salt, &mut key).unwrap();
 }
 
 
