@@ -7,39 +7,12 @@ use thunderdome::{Arena, Index};
 use walkdir::WalkDir;
 use anyhow::{anyhow, Result};
 
-use sonors::{ioutils::*, secure::{create_key, generate_salt, read_encrypted, write_encrypted}};
+use sonors::{constants::CHUNK_SIZE, ioutils::*, security::secure::{create_key, generate_salt, read_encrypted, write_encrypted}, structure::node::ArchivalNode};
 
 use chacha20poly1305::aead::Aead;
 
-// 128 MiB
-pub const CHUNK_SIZE: usize = 131_072;
 
 
-#[derive(Debug)]
-pub struct ArchivalNode {
-    pub path: PathBuf,
-    pub is_leaf: bool,
-}
-
-/*
-impl ArchivalNode {
-    pub fn write_header_bytes<W: Write + Seek>(&self, writer: &mut W) -> Result<Vec<u8>> {
-
-        //let path_bytes = self.path.to_str()
-         //   .ok_or_else(|| anyhow!("Failed to represent path {:?} as UTF-8 bytes.", self.path))?;
-        
-        // Encode the length of the header
-        let mut bytes = Vec::new();
-        //bytes.extend_from_slice(&((5 + path_bytes.len()) as u32).to_le_bytes());
-        //bytes.extend_from_slice(&(path_bytes.len() as u32).to_le_bytes());
-        bytes.push(if self.is_leaf { 0x01 } else { 0x00 });
-        //write_pathbuf(writer, &self.path)?;
-        //bytes.extend_from_slice(path_bytes.as_bytes());
-    
-        Ok(bytes)
-    }
-}
-*/
 
 pub fn transfer_archival_node<R: Read + Seek, W: Write + Seek>(reader: &mut R, writer: &mut W, key: &[u8]) -> Result<()>{
 
@@ -79,16 +52,8 @@ pub fn write_archival_node<T: Write + Seek>(writer: &mut T, node: &ArchivalNode,
                 break;
             }
 
-
-            
-
-           // println!("Writing chunks!");
             writer.write_all(&[0x00])?;
             write_encrypted(writer, key, &buf[..bytes_read])?;
-
-            //writer.write_all(&(bytes_read as u32).to_le_bytes())?;
-            //writer.write_all(&buf[..bytes_read])?;
-            println!("Wrote some stuff");
         }
         writer.write_all(&[0x01])?;
     }
@@ -267,10 +232,10 @@ pub fn read_sonorous_file_table<T: Read + Seek>(reader: &mut T, password: &str) 
     Ok(file_table)
 }
 
-pub enum SonorousHeader {
-    PasswordSalt = 0x00,
-    UtilityVersion = 0x01
-}
+//pub enum SonorousHeader {
+//    PasswordSalt = 0x00,
+//    UtilityVersion = 0x01
+//}
 
 
 
