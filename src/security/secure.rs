@@ -66,11 +66,11 @@ pub fn generate_salt() -> [u8; SALT_LENGTH_IN_BYTES] {
 }
 
 /// Creates a key from a salt and the UTF-8 bytes of a passowrd.
-pub fn create_key(salt: &[u8], password: &[u8]) -> Result<[u8; SALT_LENGTH_IN_BYTES]> {
+pub fn create_key(salt: &[u8], password: &[u8]) -> Result<Vec<u8>> {
     let mut key = [0u8; KEY_LENGTH_IN_BYTES];
     Argon2::default().hash_password_into(password, &salt, &mut key)
         .map_err(|e| anyhow!("Failed to produce password with error: {e}"))?;
-    Ok(key)
+    Ok(key.to_vec())
 }
 
 

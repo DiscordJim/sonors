@@ -1,6 +1,23 @@
 use std::{fs::create_dir_all, io::{Read, Seek, Write}, path::{Path, PathBuf}};
 use anyhow::{Result, anyhow};
 
+use crate::security::secure::read_encrypted;
+
+pub fn transfer_archival_node<R: Read + Seek, W: Write + Seek>(reader: &mut R, writer: &mut W, key: &[u8]) -> Result<()>{
+
+
+    loop {
+        let status = read_byte(reader)?;
+        if status == 0x01 {
+            break
+        }
+       
+       // let mut buf = vec![0u8; read_u32(reader)? as usize];
+       // reader.read_exact(&mut buf)?;        
+        writer.write_all(&read_encrypted(reader, key)?)?;
+    }   
+    Ok(())
+}
 
 pub fn create_directory_tree(path: impl AsRef<Path>, is_file: bool) -> Result<()> {
 

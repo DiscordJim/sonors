@@ -10,22 +10,21 @@ use super::node::ArchivalNode;
 pub struct FileTable {
     /// The actual table. 
     ///
-    /// (POS, POS, NODE)
+    /// (Index, File Positon, ArchivalNode)
     pub map: Vec<(u32, u64, ArchivalNode)>,
     /// The encryption key being used for the table.
     key: Vec<u8>,
+    /// The salt used for the table.
     salt: Vec<u8>
-    
 }
 
 impl FileTable {
     /// Creates a blank new file table.
-    pub fn new(key: &[u8], salt: &[u8]) -> Self {
+    pub fn new(key: Vec<u8>, salt: &[u8]) -> Self {
         Self {
             map: Vec::default(),
-            key: key.to_vec(),
+            key,
             salt: salt.to_vec()
-          //  salt
         }
     }
     /// Adds a node to the file table structure.
@@ -37,6 +36,15 @@ impl FileTable {
     /// within the table.
     pub fn add(&mut self, index: u32, file_index: u64, node: ArchivalNode) {
         self.map.push((index, file_index, node))
+    }
+    /// Returns the key.
+    ///
+    /// # Safety
+    /// This function is potentially unsafe as cloning the key in 
+    /// any form could prevent it from being zeroed and therefore
+    /// leading to it being seen in memory.
+    pub unsafe fn key(&self) -> &[u8] {
+        &self.key
     }
     /// Creates a `FileTable` from a mutable reader object.
     pub fn from_reader<T: Read + Seek>(reader: &mut T, password: &str) -> Result<Self> {
@@ -103,15 +111,15 @@ fn read_file_table<T: Read + Seek>(reader: &mut T, password: &str) -> Result<Fil
     let mut salt = vec![0u8; SALT_LENGTH_IN_BYTES];
     reader.read_exact(&mut salt)?;
 
-    let key = &create_key(&salt, password.as_bytes())?;
+    let key = create_key(&salt, password.as_bytes())?;
 
     // Decrypt the file table.
-    let decrypted = read_encrypted(reader, key)?;
+    let decrypted = read_encrypted(reader, &key)?;
 
 
     let decrypted_len = decrypted.len();
     let mut reader = Cursor::new(Vec::from(decrypted));
-    let mut file_table = FileTable::new(key, &*salt);
+    let mut file_table = FileTable::new(key, &salt);
 
     loop {
         let key = read_u32(&mut reader)?;
@@ -156,7 +164,7 @@ mod tests {
         let salt = generate_salt();
         let key = create_key(&salt, password.as_bytes())?;
 
-        let mut file_table = FileTable::new(&key, &salt);
+        let mut file_table = FileTable::new(key, &salt);
         file_table.add(0, 32, crate::structure::node::ArchivalNode { path: Path::new("hello").to_path_buf(), is_leaf: true });
 
         file_table.write(&mut export)?;
@@ -164,7 +172,14 @@ mod tests {
 
 
         let mut export = Cursor::new(export.into_inner());
-        let mut file_table = FileTable::from_reader(&mut export, password)?;
+        let file_table = FileTable::from_reader(&mut export, password)?;
+
+        let first_entry = file_table.map.first().unwrap();
+        assert_eq!(first_entry.0, 0);
+        assert_eq!(first_entry.1, 32);
+        assert_eq!(first_entry.2.path.to_str().unwrap(), "hello");
+        assert_eq!(first_entry.2.is_leaf, true);
+
 
         Ok(())
     }
